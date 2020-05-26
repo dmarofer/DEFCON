@@ -11,7 +11,7 @@ Licencia: GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0
 #include <TaskScheduler.h>				// Task Scheduler
 #include <cppQueue.h>					// Libreria para uso de colas.
 #include <ConfigCom.h>					// Para la gestion de la configuracion de las comunicaciones.
-#include <Defcon.h>					// Clase de Mi Proyecto
+#include <Defcon.h>						// Clase de Mi Proyecto
 #include <ESP8266WiFi.h>				// Para la gestion de la Wifi
 #include <FS.h>							// Libreria Sistema de Ficheros
 #include <ArduinoJson.h>				// OJO: Tener instalada una version NO BETA (a dia de hoy la estable es la 5.13.4). Alguna pata han metido en la 6
@@ -80,7 +80,7 @@ void WiFiEventCallBack(WiFiEvent_t event) {
 		
 }
 
-// Manda a la cola de respuestas el mensaje de respuesta. Esta funcion la uso como CALLBACK para el objeto AbonaMatico
+// Manda a la cola de respuestas el mensaje de respuesta. Esta funcion la uso como CALLBACK para el objeto Defcon
 void MandaRespuesta(String comando, String payload) {
 
 	String t_topic = MiConfig.statTopic + "/" + comando;
@@ -515,7 +515,7 @@ void TaskComandosSerieRun(){
 }
 
 // Tarea para el metodo run del objeto de la cupula.
-void TaskAbonaMaticoRun(){
+void TaskDefconRun(){
 
 
 		MiDefcon.TaskRun();
@@ -538,7 +538,7 @@ void TaskMandaTelemetria(){
 Task TaskProcesaComandosHandler (100, TASK_FOREVER, &TaskProcesaComandos, &MiTaskScheduler, false);
 Task TaskProcesaTelemetriaHandler (1000, TASK_FOREVER, &TaskProcesaTelemetria, &MiTaskScheduler, false);
 Task TaskEnviaRespuestasHandler (100, TASK_FOREVER, &TaskEnviaRespuestas, &MiTaskScheduler, false);
-Task TaskAbonaMaticoRunHandler (100, TASK_FOREVER, &TaskAbonaMaticoRun, &MiTaskScheduler, false);
+Task TaskDefconRunHandler (100, TASK_FOREVER, &TaskDefconRun, &MiTaskScheduler, false);
 Task TaskMandaTelemetriaHandler (5000, TASK_FOREVER, &TaskMandaTelemetria, &MiTaskScheduler, false);
 Task TaskComandosSerieRunHandler (100, TASK_FOREVER, &TaskComandosSerieRun, &MiTaskScheduler, false);
 Task TaskGestionRedHandler (30000, TASK_FOREVER, &TaskGestionRed, &MiTaskScheduler, false);	
@@ -554,7 +554,7 @@ void setup() {
 	Serial.begin(115200);
 	Serial.println();
 
-	Serial.println("-- Iniciando Controlador AbonaMatico --");
+	Serial.println("-- Iniciando Controlador Defcon --");
 
 	// Asignar funciones Callback
 	MiDefcon.SetRespondeComandoCallback(MandaRespuesta);
@@ -582,7 +582,7 @@ void setup() {
 	
 		}
 
-		// Leer configuracion salvada del Objeto MiAbonaMatico
+		// Leer configuracion salvada del Objeto MiDefcon
 		MiDefcon.LeeConfig();
 
 	}
@@ -608,7 +608,7 @@ void setup() {
 	TaskProcesaComandosHandler.enable();
 	TaskProcesaTelemetriaHandler.enable();
 	TaskEnviaRespuestasHandler.enable();
-	TaskAbonaMaticoRunHandler.enable();
+	TaskDefconRunHandler.enable();
 	TaskMandaTelemetriaHandler.enable();
 	TaskComandosSerieRunHandler.enable();
 	
@@ -618,8 +618,8 @@ void setup() {
 
 	// Iniciar Mecanica para pruebas forzando el estado a Sin Iniciar (cosa que solo se debe hacer si no esta puesta la jeringuilla)
 	//Serial.println("Iniciando Mecanica desde Setup");
-	//MiAbonaMatico.Estado_Mecanica = MiAbonaMatico.EM_SIN_INICIAR;
-	//MiAbonaMatico.IniciaMecanica();
+	//MiDefcon.Estado_Mecanica = MiDefcon.EM_SIN_INICIAR;
+	//MiDefcon.IniciaMecanica();
 	
 }
 
@@ -633,12 +633,10 @@ void setup() {
 void loop() {
 
 	ArduinoOTA.handle();
-	//ESP.wdtFeed();
 	//ClienteNTP.update();
 	MiDefcon.RunFast();
-	//ESP.wdtFeed();
 	MiTaskScheduler.execute();
-	//ESP.wdtFeed();
+	
 
 }
 
