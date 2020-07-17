@@ -1,10 +1,17 @@
 
-#include "Defcon.h"
+#include <Defcon.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>				// OJO: Tener instalada una version NO BETA (a dia de hoy la estable es la 5.13.4). Alguna pata han metido en la 6
 #include <NTPClient.h>					// Para la gestion de la hora por NTP
 #include <WiFiUdp.h>					// Para la conexion UDP con los servidores de hora.
 #include <FS.h>							// Libreria Sistema de Ficheros
+#include <Configuracion.h>				// Fichero de configuracion
+#include <Adafruit_NeoPixel.h>			// Para los LED: https://adafruit.github.io/Adafruit_NeoPixel/html/class_adafruit___neo_pixel.html
+
+
+// OBJETOS
+Adafruit_NeoPixel MisLeds (NUMEROLEDS, PINLEDS, NEO_GRB + NEO_KHZ800);
+
 
 Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(ClienteNTP) {
 
@@ -12,8 +19,43 @@ Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(Cl
 	ComOK = false;
 	HayQueSalvar = false;
 	mificheroconfig = fich_config_Defcon;
-    
+
+	
+	// Inicializar los arrays
+	// Valores de HUE para los LED
+	HueBloque[0] = HUELED0;
+	HueBloque[1] = HUELED1;
+	HueBloque[2] = HUELED2;
+	HueBloque[3] = HUELED3;
+	HueBloque[4] = HUELED4;
+	HueBloque[5] = HUELED5;
+
+	// Valores de Saturacion para los LED
+	SaturacionBloque[0] = SATLED0;
+	SaturacionBloque[1] = SATLED1;
+	SaturacionBloque[2] = SATLED2;
+	SaturacionBloque[3] = SATLED3;
+	SaturacionBloque[4] = SATLED4;
+	SaturacionBloque[5] = SATLED5;
+	
+	// Valores de indice del primer led de cada bloque
+	PrimerLed[0] = 0;
+	PrimerLed[5] = PrimerLed[0] + NUMLED0;
+	PrimerLed[4] = PrimerLed[5] + NUMLED5;
+	PrimerLed[3] = PrimerLed[4] + NUMLED4;
+	PrimerLed[2] = PrimerLed[3] + NUMLED3;
+	PrimerLed[1] = PrimerLed[2] + NUMLED2;
+
+	// Valores de indice del ultimo led de cada bloque
+    UltimoLed[0] = NUMLED0 -1;
+	UltimoLed[5] = UltimoLed[0] + NUMLED5;
+	UltimoLed[4] = UltimoLed[5] + NUMLED4;
+	UltimoLed[3] = UltimoLed[4] + NUMLED3;
+	UltimoLed[2] = UltimoLed[3] + NUMLED2;
+	UltimoLed[1] = UltimoLed[2] + NUMLED1;
+
 }
+
 
 void Defcon::SetRespondeComandoCallback(RespondeComandoCallback ref) {
 
@@ -37,8 +79,8 @@ String Defcon::MiEstadoJson(int categoria) {
 		jObj.set("TIME", ClienteNTP.getFormattedTime());				// HORA
 		jObj.set("HI", HardwareInfo);									// Info del Hardware
 		jObj.set("UPT", t_uptime);										// Uptime en segundos
-		jObj.set("CS", ComOK);											// Info de la conexion WIFI y MQTT
-			
+		jObj.set("DL", DefconLevelActual);								// Defcon Level
+		
 		break;
 
 	case 2:
@@ -125,6 +167,38 @@ boolean Defcon::LeeConfig(){
 
 }
 
+// Inicializar las cosas
+void Defcon::Iniciar(){
+
+	Serial.println("Iniciando Leds");
+
+	MisLeds.begin();
+	MisLeds.clear();
+	// Poner a Cero los niveles Defcon (nivel cero es todo apagado)
+	DefconLevelActual = 5;
+	DefconLevelFuturo = 5;
+	Estado_Cambio_Defcon = DEFCON_SIN_CAMBIOS;
+
+	// Poner los LED en su estado INICIAL
+	uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], 255);
+	MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
+	
+	// La cabecera a rojo al iniciar (SIN RED)
+	ColorDestino = MisLeds.Color(255,0,0);
+	MisLeds.fill(ColorDestino,PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+	Estado_Cabecera_Actual = CABECERA_SINRED;
+	Estado_Cabecera_Futuro = CABECERA_SINRED;
+	MisLeds.show();
+
+	// Inicializar a 0 los problemas
+	for (uint8_t i=0; i<4; i++){
+
+		ProblemasZabbix[i] = 0;
+
+	}
+		
+}
+
 // Cosas a ejecutar en intervalo lento
 void Defcon::TaskRun(){
 
@@ -144,4 +218,272 @@ void Defcon::RunFast() {
 
 	}
 
+	// Maquina de estado para el timing del cambio de Defcon
+	this->MaquinaEstadoCambioDefconRun();	
+
+	// Maquina de estado para el cambio de la cabecera
+	this->MaquinaEstadoCambioCabeceraRun();
+
+
+}
+
+// Cambiar el nivel Defcon
+void Defcon::SetDefconLevel (int l_DefconLevel){
+
+	DefconLevelFuturo = l_DefconLevel;
+
+}
+
+// Cambiar el color de los leds de cabecera
+void Defcon::SetCabecera(Defcon::TipoEstadosCabecera l_Estado_Cabecera){
+
+	Estado_Cabecera_Futuro = l_Estado_Cabecera;
+
+}
+
+// Cambiar el brillo global de los LED
+void Defcon::SetBrillo (uint8_t l_brillo){
+
+
+	MisLeds.setBrightness(l_brillo);
+	MisLeds.show();
+
+}
+
+// Funcion para recibir los datos de Zabbix via JSON
+void Defcon::Problemas (String jsonproblemas){
+
+	// Pillo los valores del JSON
+	DynamicJsonBuffer jsonBuffer;
+	JsonObject& json = jsonBuffer.parseObject(jsonproblemas);
+	if (json.success()) {
+
+		//Serial.print("JSON ZABBIX OK");
+		//json.printTo(Serial);
+		//Serial.println("");
+
+		ProblemasZabbix[0] = json.get<uint8_t>("DISASTER");
+		ProblemasZabbix[1] = json.get<uint8_t>("HIGH");
+		ProblemasZabbix[2] = json.get<uint8_t>("AVERAGE");
+		ProblemasZabbix[3] = json.get<uint8_t>("WARNING");
+				
+	}
+
+	// Y calculo el nivel DEFCON
+	int DefconFromZabbix = DefconLevelActual;
+
+	// Con este algoritmo que empieza de 5 a 1
+	// Si no hay problemas Defcon 5
+	if (ProblemasZabbix[0] == 0 && ProblemasZabbix[1] == 0 && ProblemasZabbix[2] == 0 && ProblemasZabbix[3] == 0){
+
+		DefconFromZabbix = 5;
+
+	}
+
+	// Si hay algun Warning o algun Average al menos Defcon 4
+	if (ProblemasZabbix[2] > 0 || ProblemasZabbix[3] > 0){
+
+		DefconFromZabbix = 4;
+
+	}
+
+	// Si hay algun HIGH o mas de 5 AVERAGES o mas de 10 WARNINGS al menos Defcon 3
+	if (ProblemasZabbix[1] >0 || ProblemasZabbix[2] > 5 || ProblemasZabbix[3] > 10){
+
+		DefconFromZabbix = 3;
+
+	}
+
+	// Si hay algun DISASTER o mas de 3 HIGH o mas de 10 AVERAGES o mas de 15 WARNINGS al menos Defcon 2
+	if (ProblemasZabbix[0] > 0 || ProblemasZabbix[1] >3 || ProblemasZabbix[2] > 10 || ProblemasZabbix[3] > 15){
+
+		DefconFromZabbix = 2;
+
+	}
+
+	// Si hay mas de 3 DISASTER o mas de 10 HIGH o mas de 15 AVERAGES o mas de 25 WARNINGS DEFCON 1 GUERRA MUNDIAL
+	if (ProblemasZabbix[0] > 3 || ProblemasZabbix[1] >10 || ProblemasZabbix[2] > 15 || ProblemasZabbix[3] > 25){
+
+		DefconFromZabbix = 1;
+
+	}
+
+	// Mirar el estado Defcon Actual y actualizar si ha cambiado
+
+	if (DefconLevelActual != DefconFromZabbix){
+
+		DefconLevelFuturo = DefconFromZabbix;
+		
+	}
+
+}
+
+
+// Funciones Privadas
+// Inicia el tiempo de delta
+void Defcon::Delta1Begin(){
+
+	MillisDelta1 = millis();
+
+}
+
+// Devuelve el tiempo de Delta
+unsigned long Defcon::GetDelta1(){
+
+	return millis() - MillisDelta1;
+
+}
+
+// Funcion de Vida para la maquina de estado del cambio de Defcon
+void Defcon::MaquinaEstadoCambioDefconRun(){
+
+
+	switch (Estado_Cambio_Defcon){
+
+		
+		case DEFCON_SIN_CAMBIOS:
+
+			if (DefconLevelFuturo != DefconLevelActual){
+
+				this->Delta1Begin();
+				MiRespondeComandos("DEFCONLEVEL","CAMBIO A NIVEL " + String(DefconLevelFuturo));
+				// Aqui va el pitido
+				Estado_Cambio_Defcon = DEFCON_AVISANDO;
+
+			}
+
+		break;
+		
+
+		case DEFCON_AVISANDO:
+
+			if (this->GetDelta1() >= TBUZZER){
+
+				// Parar el Pitido
+				this->Delta1Begin();
+				Estado_Cambio_Defcon = DEFCON_PAUSA1;
+
+			}
+
+		break;
+		
+
+		case DEFCON_PAUSA1:
+
+			if (this->GetDelta1() >= TPAUSA1 ){
+
+				this->Delta1Begin();
+				CuentaCiclosFade = 255;									// Para el siguiente estado. Haremos tantos fade como brillos haya encendidos
+				Estado_Cambio_Defcon = DEFCON_FADE_OFF;					// Al siguiente estado que vamos
+
+			}
+
+		break;
+		
+
+		case DEFCON_FADE_OFF:
+
+			// Cada vez que transcurra el tiempo que corresponda que calculamos aqui ....
+			// Imaginemos que el brillo del bloque a apagar es 137. Tendremos que hacer 137 ciclos en TFADEOFF tiempo en total, o sea a un intervalo determinado
+			if (GetDelta1() >= (TFADEOFF / 255) && CuentaCiclosFade >= 0){
+
+				if (CuentaCiclosFade > 0) { CuentaCiclosFade--;}
+				uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], CuentaCiclosFade);
+				MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
+				MisLeds.show();
+				Delta1Begin();
+				
+			}
+
+			// Cuando lleguemos a Cero, pues ya hemos acabado el fade, siguiente estado
+			if (CuentaCiclosFade == 0){
+
+				Estado_Cambio_Defcon = DEFCON_PAUSA2;
+				Delta1Begin();
+
+			}
+
+		break;
+		
+
+		case DEFCON_PAUSA2:
+		
+			if (this->GetDelta1() >= TPAUSA2 ){
+
+				this->Delta1Begin();
+				CuentaCiclosFade = 0;		// Para el siguiente estado. Haremos tantos fade como brillos haya encendidos
+				Estado_Cambio_Defcon = DEFCON_FADE_ON;					// Al siguiente estado que vamos
+
+			}
+		
+		break;
+		
+
+		case DEFCON_FADE_ON:
+
+			// Cada vez que transcurra el tiempo que corresponda que calculamos aqui ....
+			// Imaginemos que el brillo del bloque a apagar es 137. Tendremos que hacer 137 ciclos en TFADEOFF tiempo en total, o sea a un intervalo determinado
+			if (GetDelta1() >= (TFADEON / 255) && CuentaCiclosFade <= 255){
+
+				if (CuentaCiclosFade < 255) {CuentaCiclosFade++;}
+				uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelFuturo], SaturacionBloque[DefconLevelFuturo], CuentaCiclosFade);
+				MisLeds.fill(ColorDestino,PrimerLed[DefconLevelFuturo], (UltimoLed[DefconLevelFuturo]-PrimerLed[DefconLevelFuturo]) + 1);
+				MisLeds.show();
+				Delta1Begin();
+				
+
+			}
+
+			// Cuando lleguemos a Cero, pues ya hemos acabado el fade y el proceso de cambio entero
+			if (CuentaCiclosFade == 255){
+
+				Estado_Cambio_Defcon = DEFCON_SIN_CAMBIOS;
+				DefconLevelActual = DefconLevelFuturo;
+				MiRespondeComandos("DEFCONLEVEL","CAMBIO FINALIZADO. NIVEL ACTUAL " + String(DefconLevelActual));
+
+			}
+
+		break;
+	
+	}
+
+}
+
+
+void Defcon::MaquinaEstadoCambioCabeceraRun(){
+
+	if (Estado_Cabecera_Futuro != Estado_Cabecera_Actual){
+
+		switch (Estado_Cabecera_Futuro){
+	
+			case CABECERA_SINRED:
+				
+				MisLeds.fill(MisLeds.Color(255,0,0),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+				Estado_Cabecera_Actual = CABECERA_SINRED;
+				MisLeds.show();
+
+			break;
+
+
+			case CABECERA_SINMQTT:
+				
+				MisLeds.fill(MisLeds.Color(255,140,0),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+				Estado_Cabecera_Actual = CABECERA_SINMQTT;
+				MisLeds.show();
+
+			break;
+
+
+			case CABECERA_OK:
+				
+				MisLeds.fill(MisLeds.Color(255,255,255),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+				Estado_Cabecera_Actual = CABECERA_OK;
+				MisLeds.show();
+
+			break;
+	
+		}
+
+	}
+	
 }

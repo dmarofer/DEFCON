@@ -27,9 +27,8 @@ Licencia: GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0
 #pragma region Objetos
 
 // Manejadores Colas para comunicaciones inter-tareas
-Queue ColaComandos(300, 10, IMPLEMENTATION);	// Cola para los comandos recibidos
-Queue ColaTelemetria(300, 10, IMPLEMENTATION);	// Cola para la telemetria recibida
-Queue ColaRespuestas(300, 10, IMPLEMENTATION);	// Cola para las respuestas a enviar
+Queue ColaComandos(200, 10, IMPLEMENTATION);	// Cola para los comandos recibidos
+Queue ColaTX(300, 10, IMPLEMENTATION);	// Cola para las respuestas a enviar
 
 // Flag para el estado del sistema de ficheros
 boolean SPIFFStatus = false;
@@ -65,11 +64,12 @@ void WiFiEventCallBack(WiFiEvent_t event) {
     	case WIFI_EVENT_STAMODE_GOT_IP:
      	   	Serial.print("Conexion WiFi: Conetado. IP: ");
       	  	Serial.println(WiFi.localIP());
+			MisComunicaciones.Conectar();
 			ArduinoOTA.begin();
 			Serial.println("Proceso OTA arrancado.");
 			ClienteNTP.begin();
-			MisComunicaciones.Conectar();
-        	break;
+			MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
+			break;
     	case WIFI_EVENT_STAMODE_DISCONNECTED:
         	Serial.println("Conexion WiFi: Desconetado");
         	break;
@@ -100,12 +100,12 @@ void MandaRespuesta(String comando, String payload) {
 	ObjJson.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
 	
 	// Mando el comando a la cola de comandos recibidos que luego procesara la tarea manejadordecomandos.
-	ColaRespuestas.push(&JSONmessageBuffer); 
+	ColaTX.push(&JSONmessageBuffer); 
 
 }
 
 // Funcion ante un Evento de la libreria de comunicaciones
-void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[300]){
+void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[200]){
 
 	
 	switch (Evento_Comunicaciones)
@@ -122,7 +122,8 @@ void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[300]){
 		Serial.print("MQTT - CONECTADO: ");
 		Serial.println(String(Info));
 		ClienteNTP.update();
-		
+		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_OK);
+
 	break;
 
 	case Comunicaciones::EVENTO_CMND_RX:
@@ -130,20 +131,6 @@ void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[300]){
 		Serial.print("MQTT - CMND_RX: ");
 		Serial.println(String(Info));
 		ColaComandos.push(Info);
-
-	break;
-
-	case Comunicaciones::EVENTO_TELE_RX:
-
-		//Serial.print("MQTT - TELE_RX: ");
-		//Serial.println(String(Info));
-		ColaTelemetria.push(Info);
-
-	break;
-
-	case Comunicaciones::EVENTO_DESCONECTADO:
-
-		
 
 	break;
 
@@ -156,7 +143,7 @@ void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[300]){
 }
 
 // envia al topic tele la telemetria en Json
-void MandaTelemetria() {
+void CocinaTelemetria() {
 	
 
 	String t_topic = MiConfig.teleTopic + "/INFO1";
@@ -172,7 +159,7 @@ void MandaTelemetria() {
 	ObjJson.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
 	
 	// Mando el comando a la cola de comandos recibidos que luego procesara la tarea manejadordecomandos.
-	ColaRespuestas.push(&JSONmessageBuffer); 
+	ColaTX.push(&JSONmessageBuffer); 
 
 	
 }
@@ -185,18 +172,33 @@ void MandaTelemetria() {
 // Tarea para vigilar la conexion con el MQTT y conectar si no estamos conectados
 void TaskGestionRed () {
 
-		if (WiFi.isConnected() && !MisComunicaciones.IsConnected()){
-			
-			MisComunicaciones.Conectar();
-			
-		}
+	if (WiFi.isConnected()){
 		
+		if ( !MisComunicaciones.IsConnected() ){
+
+			MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
+			MisComunicaciones.Conectar();
+
+		}
+
+		// Esto teoricamente se ejecuta en loop y solo actualiza en el tiempo que le damos al constructor, pero con esto es suficiente
+		ClienteNTP.update();
+		
+	}
+
+	else {
+
+		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINRED);
+		WiFi.reconnect();
+
+	}
+
 }
 
 //Tarea para procesar la cola de comandos recibidos
 void TaskProcesaComandos (){
 
-	char JSONmessageBuffer[300];
+	char JSONmessageBuffer[200];
 				
 			// Limpiar el Buffer
 			memset(JSONmessageBuffer, 0, sizeof JSONmessageBuffer);
@@ -291,12 +293,25 @@ void TaskProcesaComandos (){
 					}
 
 
-					else if (COMANDO == "DefconComando1"){
+					else if (COMANDO == "DEFCONLEVEL"){
 
-						
+						MiDefcon.SetDefconLevel(PAYLOAD.toInt());
 
 					}
 
+					else if (COMANDO == "BRILLO"){
+
+						MiDefcon.SetBrillo(PAYLOAD.toInt());
+
+					}
+
+					else if (COMANDO == "PROBLEMAS"){
+
+						MiDefcon.Problemas(PAYLOAD);
+
+					}
+
+					
 					// Y Ya si no es de ninguno de estos ....
 
 					else {
@@ -321,67 +336,8 @@ void TaskProcesaComandos (){
 	
 }
 
-// Tarea para procesar la telemetria recibida
-void TaskProcesaTelemetria(){
-
-			char JSONmessageBuffer[300];
-				
-			// Limpiar el Buffer
-			memset(JSONmessageBuffer, 0, sizeof JSONmessageBuffer);
-
-			//if (xQueueReceive(ColaComandos,&JSONmessageBuffer,0) == pdTRUE ){
-			if (ColaTelemetria.pull(&JSONmessageBuffer)){
-
-				String COMANDO;
-				String PAYLOAD;
-				DynamicJsonBuffer jsonBuffer;
-				JsonObject& ObjJson = jsonBuffer.parseObject(JSONmessageBuffer);
-
-				if (ObjJson.success()) {
-				
-					COMANDO = ObjJson["COMANDO"].as<String>();
-					PAYLOAD = ObjJson["PAYLOAD"].as<String>();
-					
-					// Procesar los mensajes de Telemetria
-
-					if (COMANDO == "LWT"){
-												
-						if (PAYLOAD == "Online"){
-
-							
-						}
-
-						else {
-
-							
-						}
-
-
-					}
-
-					else {
-
-						//Serial.println("Me ha llegado un paquete de telemetria que no proceso.");
-						//Serial.println("Comando: " + COMANDO);
-						//Serial.println("Payload: " + PAYLOAD);
-
-					}
-
-				}
-
-				// Y si por lo que sea la libreria JSON no puede convertir el comando recibido
-				else {
-
-						Serial.println("La tarea de procesar telemetria ha recibido un paquete JSON mal formado.");
-						
-				}
-			
-			}
-
-}
-
 // Tarea para procesar la cola de respuestas
-void TaskEnviaRespuestas(){
+void TaskTX(){
 
 	
 	char JSONmessageBuffer[300];
@@ -389,7 +345,7 @@ void TaskEnviaRespuestas(){
 		// Limpiar el Buffer
 		memset(JSONmessageBuffer, 0, sizeof JSONmessageBuffer);
 
-		if (ColaRespuestas.pull(&JSONmessageBuffer)){
+		if (ColaTX.pull(&JSONmessageBuffer)){
 
 				DynamicJsonBuffer jsonBuffer;
 
@@ -402,16 +358,22 @@ void TaskEnviaRespuestas(){
 					String MQTTT = ObjJson["MQTTT"].as<String>();
 					String RESP = ObjJson["RESP"].as<String>();
 					
+					char BufferTopic[75];
+					char BufferPayload[200];
+
+					strcpy(BufferTopic, MQTTT.c_str());
+					strcpy(BufferPayload, RESP.c_str());
+
 					if (TIPO == "BOTH"){
 
-						MisComunicaciones.Enviar(MQTTT, RESP);
+						MisComunicaciones.Enviar(BufferTopic, BufferPayload);
 						Serial.println(ClienteNTP.getFormattedTime() + " " + CMND + " " + RESP);
 						
 					}
 
 					else 	if (TIPO == "MQTT"){
 
-						MisComunicaciones.Enviar(MQTTT, RESP);
+						MisComunicaciones.Enviar(BufferTopic, BufferPayload);
 																								
 					}
 					
@@ -524,10 +486,10 @@ void TaskDefconRun(){
 }
 
 // tarea para el envio periodico de la telemetria
-void TaskMandaTelemetria(){
+void TaskCocinaTelemetria(){
 
 		
-		MandaTelemetria();
+		CocinaTelemetria();
 		
 	
 }
@@ -536,10 +498,9 @@ void TaskMandaTelemetria(){
 // Definir aqui las tareas (no en SETUP como en FreeRTOS)
 
 Task TaskProcesaComandosHandler (100, TASK_FOREVER, &TaskProcesaComandos, &MiTaskScheduler, false);
-Task TaskProcesaTelemetriaHandler (1000, TASK_FOREVER, &TaskProcesaTelemetria, &MiTaskScheduler, false);
-Task TaskEnviaRespuestasHandler (100, TASK_FOREVER, &TaskEnviaRespuestas, &MiTaskScheduler, false);
+Task TaskTXHandler (100, TASK_FOREVER, &TaskTX, &MiTaskScheduler, false);
 Task TaskDefconRunHandler (100, TASK_FOREVER, &TaskDefconRun, &MiTaskScheduler, false);
-Task TaskMandaTelemetriaHandler (5000, TASK_FOREVER, &TaskMandaTelemetria, &MiTaskScheduler, false);
+Task TaskCocinaTelemetriaHandler (5000, TASK_FOREVER, &TaskCocinaTelemetria, &MiTaskScheduler, false);
 Task TaskComandosSerieRunHandler (100, TASK_FOREVER, &TaskComandosSerieRun, &MiTaskScheduler, false);
 Task TaskGestionRedHandler (30000, TASK_FOREVER, &TaskGestionRed, &MiTaskScheduler, false);	
 
@@ -559,14 +520,7 @@ void setup() {
 	// Asignar funciones Callback
 	MiDefcon.SetRespondeComandoCallback(MandaRespuesta);
 		
-	// Comunicaciones
 	
-	WiFi.onEvent(WiFiEventCallBack);
-
-	// Iniciar la Wifi
-	WiFi.begin();
-
-
 	// Iniciar el sistema de ficheros
 	SPIFFStatus = SPIFFS.begin();
 
@@ -601,25 +555,24 @@ void setup() {
 	MisComunicaciones.SetMqttPassword(MiConfig.mqttpassword);
 	MisComunicaciones.SetMqttClientId(MiConfig.mqtttopic);
 	MisComunicaciones.SetMqttTopic(MiConfig.mqtttopic);
+	
+	// Iniciar la Wifi
+	WiFi.onEvent(WiFiEventCallBack);
+	WiFi.begin();
 
 	// TASKS
 	Serial.println("Habilitando tareas del sistema.");
 		
 	TaskProcesaComandosHandler.enable();
-	TaskProcesaTelemetriaHandler.enable();
-	TaskEnviaRespuestasHandler.enable();
+	TaskTXHandler.enable();
 	TaskDefconRunHandler.enable();
-	TaskMandaTelemetriaHandler.enable();
+	TaskCocinaTelemetriaHandler.enable();
 	TaskComandosSerieRunHandler.enable();
 	
 	// Init Completado.
 	Serial.println("Funcion Setup Completada - Tareas Scheduler y loop en marcha");
-
-
-	// Iniciar Mecanica para pruebas forzando el estado a Sin Iniciar (cosa que solo se debe hacer si no esta puesta la jeringuilla)
-	//Serial.println("Iniciando Mecanica desde Setup");
-	//MiDefcon.Estado_Mecanica = MiDefcon.EM_SIN_INICIAR;
-	//MiDefcon.IniciaMecanica();
+	
+	MiDefcon.Iniciar();
 	
 }
 
@@ -633,9 +586,9 @@ void setup() {
 void loop() {
 
 	ArduinoOTA.handle();
-	//ClienteNTP.update();
-	MiDefcon.RunFast();
 	MiTaskScheduler.execute();
+	MiDefcon.RunFast();
+	MisComunicaciones.RunFast();
 	
 
 }

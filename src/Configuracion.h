@@ -22,3 +22,56 @@
 //#define _TASK_PRIORITY        // Support for layered scheduling priority
 //#define _TASK_MICRO_RES       // Support for microsecond resolutionMM
 //#define _TASK_DEBUG
+
+// PINES
+#define PINLEDS D5
+#define PINBUZZER D6
+
+// Numero total de LEDS
+#define NUMEROLEDS 6
+
+// Numero de leds de cada bloque
+#define NUMLED0 1 // EL DEFCON
+#define NUMLED5 1
+#define NUMLED4 1
+#define NUMLED3 1
+#define NUMLED2 1
+#define NUMLED1 1
+
+// PARA EL COLOR. FORMATO HSV (HUE, SATURACION y BRILLO)
+
+#define HUELED0 0               // Blanco asi que da igual porque bajaremos la saturacion a cero)
+#define HUELED1 0               // Lo mismo
+#define HUELED2 0               // ROJO
+#define HUELED3 10000           // NARANJA
+#define HUELED4 22000           // VERDE
+#define HUELED5 40000           // AZUL
+
+#define SATLED0 0
+#define SATLED1 0
+#define SATLED2 255
+#define SATLED3 255
+#define SATLED4 255
+#define SATLED5 255
+
+// FRECUENCIA EN HZ DEL BERRIDO AL CAMBIO DEL DEFCON
+#define FRECUENCIDEFCON 1500
+
+// TIMINGS en MS |__ TBUZZER __|__ TPAUSA1 __|__ TFADEOFF __|__ TPAUSA2 __|__ TFADEON__|
+#define TBUZZER 2000
+#define TPAUSA1 2000
+#define TFADEOFF 255
+#define TPAUSA2 2000
+#define TFADEON 255
+
+// Traduccion de Diego de problemas Zabbix a DEFCON
+// DISASTER - HIGH - AVERAGE - WARNING
+
+// 
+
+
+// DEFCON1 - Si 3 o mas problemas DISASTER, da igual el resto
+// DEFCON2 - MAX 2 DISASTER - MAX 3 HIGH - MAX 10 AVE - MAX 30 WARN
+// DEFCON3 - 0 DISASTER - MAX 2 HIGH, MAX 5 AVERAGE, MAX 10 WARN
+// DEFCON4 - >0 WARN - MAX 2 AVERAGE - MAX 0 HIGH - MAX 0 DISASTER
+// DEFCON5 - Ningun problema
