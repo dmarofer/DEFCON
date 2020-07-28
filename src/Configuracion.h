@@ -28,15 +28,15 @@
 #define PINBUZZER D6
 
 // Numero total de LEDS
-#define NUMEROLEDS 6
+#define NUMEROLEDS 50
 
 // Numero de leds de cada bloque
-#define NUMLED0 1 // EL DEFCON
-#define NUMLED5 1
-#define NUMLED4 1
-#define NUMLED3 1
-#define NUMLED2 1
-#define NUMLED1 1
+#define NUMLED0 20 // EL DEFCON
+#define NUMLED5 6
+#define NUMLED4 6
+#define NUMLED3 6
+#define NUMLED2 6
+#define NUMLED1 6
 
 // PARA EL COLOR. FORMATO HSV (HUE, SATURACION y BRILLO)
 
@@ -63,15 +63,3 @@
 #define TFADEOFF 255
 #define TPAUSA2 2000
 #define TFADEON 255
-
-// Traduccion de Diego de problemas Zabbix a DEFCON
-// DISASTER - HIGH - AVERAGE - WARNING
-
-// 
-
-
-// DEFCON1 - Si 3 o mas problemas DISASTER, da igual el resto
-// DEFCON2 - MAX 2 DISASTER - MAX 3 HIGH - MAX 10 AVE - MAX 30 WARN
-// DEFCON3 - 0 DISASTER - MAX 2 HIGH, MAX 5 AVERAGE, MAX 10 WARN
-// DEFCON4 - >0 WARN - MAX 2 AVERAGE - MAX 0 HIGH - MAX 0 DISASTER
-// DEFCON5 - Ningun problema

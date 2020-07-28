@@ -188,6 +188,11 @@ void Defcon::Iniciar(){
 	MisLeds.fill(ColorDestino,PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 	Estado_Cabecera_Actual = CABECERA_SINRED;
 	Estado_Cabecera_Futuro = CABECERA_SINRED;
+
+	// Poner el Brillo global
+	MisLeds.setBrightness(100);
+
+	// Pasar los datos a los LED
 	MisLeds.show();
 
 	// Inicializar a 0 los problemas
