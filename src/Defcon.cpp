@@ -201,13 +201,10 @@ void Defcon::Iniciar(){
 		ProblemasZabbix[i] = 0;
 
 	}
+
+	// Poner a cero el contador de datos recibidos
+	MillisRXDatos = 0;
 		
-}
-
-// Cosas a ejecutar en intervalo lento
-void Defcon::TaskRun(){
-
-
 }
 
 // A ejecutar lo mas rapido posible
@@ -222,6 +219,35 @@ void Defcon::RunFast() {
 		HayQueSalvar = false;
 
 	}
+
+	// Para gestionar el color de cabecera si recibo o no datos.	
+	switch (Estado_Cabecera_Actual) {
+	
+		case CABECERA_OK:
+		
+			if ((millis() - MillisRXDatos) > 70000){
+
+				this->SetCabecera(CABECERA_SIN_DATOS);
+
+			}
+
+		break;
+
+		case CABECERA_SIN_DATOS:
+		
+			if ((millis() - MillisRXDatos) <= 70000){
+
+				this->SetCabecera(CABECERA_OK);
+
+			}
+
+		break;
+		
+		default:
+		break;
+
+	}
+
 
 	// Maquina de estado para el timing del cambio de Defcon
 	this->MaquinaEstadoCambioDefconRun();	
@@ -249,14 +275,21 @@ void Defcon::SetCabecera(Defcon::TipoEstadosCabecera l_Estado_Cabecera){
 // Cambiar el brillo global de los LED
 void Defcon::SetBrillo (uint8_t l_brillo){
 
+	if (l_brillo != MisLeds.getBrightness()){
 
-	MisLeds.setBrightness(l_brillo);
-	MisLeds.show();
+		MisLeds.setBrightness(l_brillo);
+		MisLeds.show();
+		MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
 
+	}
+	
 }
 
 // Funcion para recibir los datos de Zabbix via JSON
 void Defcon::Problemas (String jsonproblemas){
+
+	// Resetear el contador de tiempo de RX de datos
+	MillisRXDatos = millis();
 
 	// Pillo los valores del JSON
 	DynamicJsonBuffer jsonBuffer;
@@ -323,7 +356,6 @@ void Defcon::Problemas (String jsonproblemas){
 
 }
 
-
 // Funciones Privadas
 // Inicia el tiempo de delta
 void Defcon::Delta1Begin(){
@@ -351,7 +383,6 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 			if (DefconLevelFuturo != DefconLevelActual){
 
 				this->Delta1Begin();
-				MiRespondeComandos("DEFCONLEVEL","CAMBIO A NIVEL " + String(DefconLevelFuturo));
 				// Aqui va el pitido
 				Estado_Cambio_Defcon = DEFCON_AVISANDO;
 
@@ -444,7 +475,7 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 
 				Estado_Cambio_Defcon = DEFCON_SIN_CAMBIOS;
 				DefconLevelActual = DefconLevelFuturo;
-				MiRespondeComandos("DEFCONLEVEL","CAMBIO FINALIZADO. NIVEL ACTUAL " + String(DefconLevelActual));
+				MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
 
 			}
 
@@ -486,12 +517,21 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 
 			break;
 
+			case CABECERA_SIN_DATOS:
+				
+				MisLeds.fill(MisLeds.Color(255,0,255),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+				Estado_Cabecera_Actual = CABECERA_SIN_DATOS;
+				MisLeds.show();
+				this->MandaConfig();
+
+			break;
 
 			case CABECERA_OK:
 				
 				MisLeds.fill(MisLeds.Color(255,255,255),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 				Estado_Cabecera_Actual = CABECERA_OK;
 				MisLeds.show();
+				this->MandaConfig();
 
 			break;
 	
@@ -499,4 +539,12 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 
 	}
 	
+}
+
+// Mandar a los topic stat las configuraciones actuales
+void Defcon::MandaConfig(){
+
+	MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
+	MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
+
 }

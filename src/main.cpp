@@ -6,13 +6,16 @@ https://bilbaomakers.org/
 Licencia: GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0.html
 */
 
-//NOTAS:
-
 // La primera vez que se inicia si no puede iniciar el sistema de ficheros lo formatea y se reinicia
 // Si hay sistema de ficheros pero no hay fichero de configuracion de comunicaciones lanza el WifiManager.
 // Si hay fichero de configuracion y no se conecta a la wifi o no puede conectar al MQTT 3 veces lanza el Wifimanager un tiempo
 // Si sale del configmanager por timeout o por SaveConfig se rebota (salvando antes el fichero de config en caso de SaveConfig)
 
+// CABECERA AZUL - WIFIMANAGER EN MARCHA
+// CABECERA ROJA - WIFI PERDIDA
+// CABECERA AMARILLA - MQTT SIN CONEXION. WIFI OK
+// CABECERA BLANCA - TODO OK
+// CABECERA MORADA - Conexiones OK pero mas de 70 segundos sin recibir datos del Zabbix
 
 #pragma region INCLUDES y DEFINES
 
@@ -78,31 +81,6 @@ Scheduler MiTaskScheduler;
 #pragma endregion
 
 #pragma region Funciones de Eventos y Telemetria
-
-// Funcion ante un evento de la wifi
-void WiFiEventCallBack(WiFiEvent_t event) {
-    
-	//Serial.printf("[WiFi-event] event: %d\n", event);
-    switch(event) {
-			
-    	case WIFI_EVENT_STAMODE_GOT_IP:
-     	   	Serial.print("Conexion WiFi: Conetado. IP: ");
-      	  	Serial.println(WiFi.localIP());
-			MisComunicaciones.Conectar();
-			ArduinoOTA.begin();
-			Serial.println("Proceso OTA arrancado.");
-			ClienteNTP.begin();
-			MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
-			break;
-    	case WIFI_EVENT_STAMODE_DISCONNECTED:
-        	Serial.println("Conexion WiFi: Desconetado");
-        	break;
-		default:
-			break;
-
-    }
-		
-}
 
 // Funcion Callback de salvar la configuracion en el WifiManager
 void WifiManagerSaveConfigCallback() {
@@ -528,15 +506,6 @@ void TaskComandosSerieRun(){
 	
 }
 
-// Tarea para el metodo run del objeto de la cupula.
-void TaskDefconRun(){
-
-
-		MiDefcon.TaskRun();
-
-
-}
-
 // tarea para el envio periodico de la telemetria
 void TaskCocinaTelemetria(){
 
@@ -546,12 +515,10 @@ void TaskCocinaTelemetria(){
 	
 }
 
-
 // Definir aqui las tareas (no en SETUP como en FreeRTOS)
 
 Task TaskProcesaComandosHandler (100, TASK_FOREVER, &TaskProcesaComandos, &MiTaskScheduler, false);
 Task TaskTXHandler (100, TASK_FOREVER, &TaskTX, &MiTaskScheduler, false);
-Task TaskDefconRunHandler (100, TASK_FOREVER, &TaskDefconRun, &MiTaskScheduler, false);
 Task TaskCocinaTelemetriaHandler (5000, TASK_FOREVER, &TaskCocinaTelemetria, &MiTaskScheduler, false);
 Task TaskComandosSerieRunHandler (100, TASK_FOREVER, &TaskComandosSerieRun, &MiTaskScheduler, false);
 Task TaskGestionRedHandler (30000, TASK_FOREVER, &TaskGestionRed, &MiTaskScheduler, false);	
@@ -636,7 +603,6 @@ void setup() {
 				TaskGestionRedHandler.enable();
 				TaskProcesaComandosHandler.enable();
 				TaskTXHandler.enable();
-				TaskDefconRunHandler.enable();
 				TaskCocinaTelemetriaHandler.enable();
 				TaskComandosSerieRunHandler.enable();
 	
