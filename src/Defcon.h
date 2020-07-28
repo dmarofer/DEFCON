@@ -77,6 +77,7 @@ public:
 	enum TipoEstadosCabecera {
 
 		CABECERA_SINRED,
+		CABECERA_AP_MODE,
 		CABECERA_SINMQTT,
 		CABECERA_OK,
 

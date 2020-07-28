@@ -454,7 +454,7 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 
 }
 
-
+// Maquina de estado para la cabecera
 void Defcon::MaquinaEstadoCambioCabeceraRun(){
 
 	if (Estado_Cabecera_Futuro != Estado_Cabecera_Actual){
@@ -465,6 +465,14 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				
 				MisLeds.fill(MisLeds.Color(255,0,0),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 				Estado_Cabecera_Actual = CABECERA_SINRED;
+				MisLeds.show();
+
+			break;
+
+			case CABECERA_AP_MODE:
+				
+				MisLeds.fill(MisLeds.Color(0,0,255),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
+				Estado_Cabecera_Actual = CABECERA_AP_MODE;
 				MisLeds.show();
 
 			break;

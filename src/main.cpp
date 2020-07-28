@@ -6,6 +6,14 @@ https://bilbaomakers.org/
 Licencia: GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0.html
 */
 
+//NOTAS:
+
+// La primera vez que se inicia si no puede iniciar el sistema de ficheros lo formatea y se reinicia
+// Si hay sistema de ficheros pero no hay fichero de configuracion de comunicaciones lanza el WifiManager.
+// Si hay fichero de configuracion y no se conecta a la wifi o no puede conectar al MQTT 3 veces lanza el Wifimanager un tiempo
+// Si sale del configmanager por timeout o por SaveConfig se rebota (salvando antes el fichero de config en caso de SaveConfig)
+
+
 #pragma region INCLUDES y DEFINES
 
 #include <TaskScheduler.h>				// Task Scheduler
@@ -22,6 +30,11 @@ Licencia: GNU General Public License v3.0 - https://www.gnu.org/licenses/gpl-3.0
 #include <Configuracion.h>				// Fichero de configuracion
 #include <Comunicaciones.h>				// Clase de Comunicaciones
 
+#include <ESP8266WiFi.h>          		//ESP8266 Core WiFi Library (you most likely already have this in your sketch)
+#include <DNSServer.h>            		//Local DNS Server used for redirecting all requests to the configuration portal
+#include <ESP8266WebServer.h>     		//Local WebServer used to serve the configuration portal
+#include <WiFiManager.h>          		//https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
 #pragma endregion
 
 #pragma region Objetos
@@ -32,6 +45,13 @@ Queue ColaTX(300, 10, IMPLEMENTATION);	// Cola para las respuestas a enviar
 
 // Flag para el estado del sistema de ficheros
 boolean SPIFFStatus = false;
+
+// WifiManager
+WiFiManager MiWifiManager;
+WiFiManagerParameter wifimanager_mqtt_server("MqttServer", "MQTT SRV", "", 40);
+WiFiManagerParameter wifimanager_mqtt_usuario("MqttUsuario", "USUARIO", "mosquitto", 20);
+WiFiManagerParameter wifimanager_mqtt_password("MqttPassword", "PASSWD", "", 20);
+WiFiManagerParameter wifimanager_mqtt_topic("MqttTopic", "TOPIC", "DEFCON", 20);
 
 // Conexion UDP para la hora
 WiFiUDP UdpNtp;
@@ -46,6 +66,10 @@ ConfigCom MiConfig = ConfigCom(FICHERO_CONFIG_COM);
 // Para las Comunicaciones
 Comunicaciones MisComunicaciones = Comunicaciones();
 
+// Contador para disparar WifiManager si no se puede conectar al servidor MQTT en un tiempo
+uint8_t CuentaReconexionesMQTT = 0;
+
+// Mi Objeto Defcon
 Defcon MiDefcon(FICHERO_CONFIG_PRJ, ClienteNTP);
 
 // Task Scheduler
@@ -78,6 +102,23 @@ void WiFiEventCallBack(WiFiEvent_t event) {
 
     }
 		
+}
+
+// Funcion Callback de salvar la configuracion en el WifiManager
+void WifiManagerSaveConfigCallback() {
+
+	strcpy(MiConfig.mqttserver, wifimanager_mqtt_server.getValue());
+	strcpy(MiConfig.mqttusuario, wifimanager_mqtt_usuario.getValue());
+	strcpy(MiConfig.mqttpassword, wifimanager_mqtt_password.getValue());
+	strcpy(MiConfig.mqtttopic, wifimanager_mqtt_topic.getValue());
+
+	if (MiConfig.escribeconfig()){
+
+		ESP.reset();
+		delay(1000);
+
+	}
+	
 }
 
 // Manda a la cola de respuestas el mensaje de respuesta. Esta funcion la uso como CALLBACK para el objeto Defcon
@@ -123,6 +164,7 @@ void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[200]){
 		Serial.println(String(Info));
 		ClienteNTP.update();
 		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_OK);
+		CuentaReconexionesMQTT = 0;
 
 	break;
 
@@ -176,8 +218,23 @@ void TaskGestionRed () {
 		
 		if ( !MisComunicaciones.IsConnected() ){
 
-			MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
-			MisComunicaciones.Conectar();
+			if (CuentaReconexionesMQTT >= 3){
+
+				MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_AP_MODE);
+				MiDefcon.RunFast();
+				MiWifiManager.startConfigPortal("DEFCON");
+				CuentaReconexionesMQTT = 0;
+
+			}
+
+			else {
+
+				MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
+				CuentaReconexionesMQTT++;
+				MisComunicaciones.Conectar();
+
+			}
+			
 
 		}
 
@@ -267,13 +324,8 @@ void TaskProcesaComandos (){
 
 						if (MiConfig.escribeconfig()){
 
-							MisComunicaciones.SetMqttServidor(MiConfig.mqttserver);
-							MisComunicaciones.SetMqttUsuario(MiConfig.mqttusuario);
-							MisComunicaciones.SetMqttPassword(MiConfig.mqttpassword);
-							MisComunicaciones.SetMqttTopic(MiConfig.mqtttopic);
-							MisComunicaciones.SetMqttClientId(HOSTNAME);
-
-							WiFi.begin(MiConfig.Wssid, MiConfig.WPasswd);
+							ESP.reset();
+							delay(1000);
 
 						}
 						
@@ -514,65 +566,122 @@ void setup() {
 	// Puerto Serie
 	Serial.begin(115200);
 	Serial.println();
-
 	Serial.println("-- Iniciando Controlador Defcon --");
 
-	// Asignar funciones Callback
-	MiDefcon.SetRespondeComandoCallback(MandaRespuesta);
-		
 	
 	// Iniciar el sistema de ficheros
 	SPIFFStatus = SPIFFS.begin();
 
+	// Si el sistema de ficheros esta creado ......
 	if (SPIFFS.begin()){
 
 		Serial.println("Sistema de ficheros montado");
 
-		// Leer la configuracion de Comunicaciones
+		// WifiManager opciones globales
+		MiWifiManager.setConfigPortalTimeout(240);
+		MiWifiManager.setSaveConfigCallback(WifiManagerSaveConfigCallback);
+		
+		// Iniciar el Objeto MiDefcon
+		MiDefcon.SetRespondeComandoCallback(MandaRespuesta);
+		MiDefcon.LeeConfig();
+		MiDefcon.Iniciar();
+		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_AP_MODE);
+		MiDefcon.RunFast();
+
+		// Leer la configuracion de Comunicaciones del fichero, y si la podemos leer
 		if (MiConfig.leeconfig()){
 
-			// Tarea de gestion de la conexion MQTT. Lanzamos solo si conseguimos leer la configuracion
-			TaskGestionRedHandler.enable();
+			// Configurar todo el objeto Miscomunicaciones
+			MisComunicaciones.SetEventoCallback(EventoComunicaciones);
+			MisComunicaciones.SetMqttServidor(MiConfig.mqttserver);
+			MisComunicaciones.SetMqttUsuario(MiConfig.mqttusuario);
+			MisComunicaciones.SetMqttPassword(MiConfig.mqttpassword);
+			MisComunicaciones.SetMqttClientId(HOSTNAME);
+			MisComunicaciones.SetMqttTopic(MiConfig.mqtttopic);
+
+			// Redefinir las opciones custom al wifimanager con lo del fichero
+			WiFiManagerParameter wifimanager_mqtt_server("MqttServer", "MQTT SRV", MiConfig.mqttserver, 40);
+			WiFiManagerParameter wifimanager_mqtt_usuario("MqttUsuario", "USUARIO", MiConfig.mqttusuario, 20);
+			WiFiManagerParameter wifimanager_mqtt_password("MqttPassword", "PASSWD", MiConfig.mqttpassword, 20);
+			WiFiManagerParameter wifimanager_mqtt_topic("MqttTopic", "TOPIC", MiConfig.mqtttopic, 20);
+
+			MiWifiManager.addParameter(&wifimanager_mqtt_server);
+			MiWifiManager.addParameter(&wifimanager_mqtt_usuario);
+			MiWifiManager.addParameter(&wifimanager_mqtt_password);
+			MiWifiManager.addParameter(&wifimanager_mqtt_topic);
+						
+			// Lanzar el Wifimanager
+			// Si consigue conectar a la wifi ....
+			if (MiWifiManager.autoConnect("DEFCON")){
+
+				// Cambiar la cabecera a modo Wifi Si - MQTT No
+				MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SINMQTT);
+				MiDefcon.RunFast();
+
+				// Log por el puerto serie
+				Serial.print("Conexion WiFi: Conetado. IP: ");
+				Serial.println(WiFi.localIP());
+
+				// Conectar al servidor MQTT
+				MisComunicaciones.Conectar();
+
+				// Arrancar el Arduino Ota
+				ArduinoOTA.begin();
+				Serial.println("Proceso OTA arrancado.");
+
+				// Arrancar el cliente NTP para la hora
+				ClienteNTP.begin();
+			
+				// Lanzar Tareas
+				TaskGestionRedHandler.enable();
+				TaskProcesaComandosHandler.enable();
+				TaskTXHandler.enable();
+				TaskDefconRunHandler.enable();
+				TaskCocinaTelemetriaHandler.enable();
+				TaskComandosSerieRunHandler.enable();
+	
+				// Init Completado.
+				Serial.println("Funcion Setup Completada - Tareas Scheduler y loop en marcha");
+
+			}
+
+			// Y si no consigue conectar ni hemos interactuado con el portal de configuracion
+			else {
+				
+				Serial.print("WifiManager no ha podido conectar ni se ha dado una configuracion");
+				Serial.print("Reiniciando el sistema");
+				ESP.reset();
+				delay(1000);
+
+			}
+			
 	
 		}
 
-		// Leer configuracion salvada del Objeto MiDefcon
-		MiDefcon.LeeConfig();
+		// Y si no podemos leer un fichero de configuracion de comunicaciones, Lanzar el WifiManager Directo en modo AP
+		else{
+
+			MiWifiManager.addParameter(&wifimanager_mqtt_server);
+			MiWifiManager.addParameter(&wifimanager_mqtt_usuario);
+			MiWifiManager.addParameter(&wifimanager_mqtt_password);
+			MiWifiManager.addParameter(&wifimanager_mqtt_topic);
+
+			MiWifiManager.startConfigPortal("DEFCON");
+
+		}
 
 	}
 
+	// Si no hay sistema de ficheros .....
 	else {
 
 		SPIFFS.format();
 		Serial.println("No se puede iniciar el sistema de ficheros, formateando ...");
+		ESP.reset();
+    	delay(1000);
 
 	}
-	
-	// Configurar todo el objeto Miscomunicaciones
-	MisComunicaciones.SetEventoCallback(EventoComunicaciones);
-	MisComunicaciones.SetMqttServidor(MiConfig.mqttserver);
-	MisComunicaciones.SetMqttUsuario(MiConfig.mqttusuario);
-	MisComunicaciones.SetMqttPassword(MiConfig.mqttpassword);
-	MisComunicaciones.SetMqttClientId(MiConfig.mqtttopic);
-	MisComunicaciones.SetMqttTopic(MiConfig.mqtttopic);
-	
-	// Iniciar la Wifi
-	WiFi.onEvent(WiFiEventCallBack);
-	WiFi.begin();
 
-	// TASKS
-	Serial.println("Habilitando tareas del sistema.");
-		
-	TaskProcesaComandosHandler.enable();
-	TaskTXHandler.enable();
-	TaskDefconRunHandler.enable();
-	TaskCocinaTelemetriaHandler.enable();
-	TaskComandosSerieRunHandler.enable();
-	
-	// Init Completado.
-	Serial.println("Funcion Setup Completada - Tareas Scheduler y loop en marcha");
-	
-	MiDefcon.Iniciar();
 	
 }
 
@@ -589,7 +698,6 @@ void loop() {
 	MiTaskScheduler.execute();
 	MiDefcon.RunFast();
 	MisComunicaciones.RunFast();
-	
 
 }
 
