@@ -43,23 +43,24 @@
 #define HUELED0 0               // Blanco asi que da igual porque bajaremos la saturacion a cero)
 #define HUELED1 0               // Lo mismo
 #define HUELED2 0               // ROJO
-#define HUELED3 10000           // NARANJA
+//#define HUELED3 10000           // NARANJA
+#define HUELED3 32768           // Correccion hacia azul para hacerlo mas amarillo
 #define HUELED4 22000           // VERDE
 #define HUELED5 40000           // AZUL
 
 #define SATLED0 0
 #define SATLED1 0
 #define SATLED2 255
-#define SATLED3 255
-#define SATLED4 255
-#define SATLED5 255
+#define SATLED3 150
+#define SATLED4 200
+#define SATLED5 0
 
 // FRECUENCIA EN HZ DEL BERRIDO AL CAMBIO DEL DEFCON
-#define FRECUENCIDEFCON 1500
+#define FRECDEFCON 400
 
 // TIMINGS en MS |__ TBUZZER __|__ TPAUSA1 __|__ TFADEOFF __|__ TPAUSA2 __|__ TFADEON__|
 #define TBUZZER 2000
-#define TPAUSA1 2000
+#define TPAUSA1 1000
 #define TFADEOFF 255
-#define TPAUSA2 2000
+#define TPAUSA2 1000
 #define TFADEON 255

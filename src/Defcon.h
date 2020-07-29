@@ -71,13 +71,21 @@ private:
 	// Para el cambio de color y estado de la cabecera.
 	void MaquinaEstadoCambioCabeceraRun();
 
+	// Un contador para cambiar la luz de cabecera si estamos mucho tiempo sin recibir datos de Zabbiz
+	unsigned long MillisRXDatos;
+
+	// Para enviar la config a los topic stat
+	void MandaConfig();
+
 public:
 
 	// Para el estado de la cabecera
 	enum TipoEstadosCabecera {
 
 		CABECERA_SINRED,
+		CABECERA_AP_MODE,
 		CABECERA_SINMQTT,
+		CABECERA_SIN_DATOS,
 		CABECERA_OK,
 
 	}Estado_Cabecera_Actual, Estado_Cabecera_Futuro;
