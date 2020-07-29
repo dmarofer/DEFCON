@@ -12,7 +12,7 @@
 // OBJETOS
 Adafruit_NeoPixel MisLeds (NUMEROLEDS, PINLEDS, NEO_GRB + NEO_KHZ800);
 
-
+// Constructor
 Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(ClienteNTP) {
 
     HardwareInfo = "Defcon-1.0b";
@@ -56,7 +56,7 @@ Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(Cl
 
 }
 
-
+// Asignar la funcion de callback de responder comandos
 void Defcon::SetRespondeComandoCallback(RespondeComandoCallback ref) {
 
 	MiRespondeComandos = (RespondeComandoCallback)ref;
@@ -108,6 +108,7 @@ String Defcon::MiEstadoJson(int categoria) {
 	
 }
 
+// Guardar configuracion en fichero
 boolean Defcon::SalvaConfig(){
 	
 
@@ -132,6 +133,7 @@ boolean Defcon::SalvaConfig(){
 
 }
 
+// Leer configuracion desde fichero.
 boolean Defcon::LeeConfig(){
 
 	// Sacar del fichero de configuracion, si existe, las configuraciones permanentes
@@ -190,7 +192,7 @@ void Defcon::Iniciar(){
 	Estado_Cabecera_Futuro = CABECERA_SINRED;
 
 	// Poner el Brillo global
-	MisLeds.setBrightness(100);
+	MisLeds.setBrightness(255);
 
 	// Pasar los datos a los LED
 	MisLeds.show();
@@ -204,7 +206,15 @@ void Defcon::Iniciar(){
 
 	// Poner a cero el contador de datos recibidos
 	MillisRXDatos = 0;
+
+	pinMode(PINBUZZER, OUTPUT);
+	tone(PINBUZZER,1200,50);
+	delay(100);
+	tone(PINBUZZER,1200,50);
+	delay(100);
+	tone(PINBUZZER,1200,100);
 		
+				
 }
 
 // A ejecutar lo mas rapido posible
@@ -383,7 +393,7 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 			if (DefconLevelFuturo != DefconLevelActual){
 
 				this->Delta1Begin();
-				// Aqui va el pitido
+				tone(PINBUZZER,FRECDEFCON,TBUZZER);
 				Estado_Cambio_Defcon = DEFCON_AVISANDO;
 
 			}

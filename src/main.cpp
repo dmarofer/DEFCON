@@ -534,7 +534,6 @@ void setup() {
 	Serial.begin(115200);
 	Serial.println();
 	Serial.println("-- Iniciando Controlador Defcon --");
-
 	
 	// Iniciar el sistema de ficheros
 	SPIFFStatus = SPIFFS.begin();
