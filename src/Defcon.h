@@ -113,7 +113,7 @@ public:
 	
 	void SetDefconLevel (int l_DefconLevel);							// Para acmabiar el estado de Defcon
 
-	void SetBrillo (uint8_t l_brillo);
+	void SetBrillo (int l_brillo);
 
 	void Problemas (String jsonproblemas);
 

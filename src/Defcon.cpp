@@ -283,9 +283,9 @@ void Defcon::SetCabecera(Defcon::TipoEstadosCabecera l_Estado_Cabecera){
 }
 
 // Cambiar el brillo global de los LED
-void Defcon::SetBrillo (uint8_t l_brillo){
+void Defcon::SetBrillo (int l_brillo){
 
-	if (l_brillo != MisLeds.getBrightness()){
+	if (l_brillo != MisLeds.getBrightness() && l_brillo >= 0 && l_brillo <= 255){
 
 		MisLeds.setBrightness(l_brillo);
 		MisLeds.show();
