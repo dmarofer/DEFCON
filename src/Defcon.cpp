@@ -335,22 +335,22 @@ void Defcon::Problemas (String jsonproblemas){
 
 	}
 
-	// Si hay algun HIGH o mas de 5 AVERAGES o mas de 10 WARNINGS al menos Defcon 3
-	if (ProblemasZabbix[1] >0 || ProblemasZabbix[2] > 5 || ProblemasZabbix[3] > 10){
+	// Si hay algun HIGH o mas de 3 AVERAGES o mas de 8 WARNINGS al menos Defcon 3
+	if (ProblemasZabbix[1] >0 || ProblemasZabbix[2] > 3 || ProblemasZabbix[3] > 8){
 
 		DefconFromZabbix = 3;
 
 	}
 
-	// Si hay algun DISASTER o mas de 3 HIGH o mas de 10 AVERAGES o mas de 15 WARNINGS al menos Defcon 2
-	if (ProblemasZabbix[0] > 0 || ProblemasZabbix[1] >3 || ProblemasZabbix[2] > 10 || ProblemasZabbix[3] > 15){
+	// Si hay algun DISASTER o mas de 3 HIGH o mas de 6 AVERAGES o mas de 15 WARNINGS al menos Defcon 2
+	if (ProblemasZabbix[0] > 0 || ProblemasZabbix[1] >3 || ProblemasZabbix[2] > 6 || ProblemasZabbix[3] > 15){
 
 		DefconFromZabbix = 2;
 
 	}
 
-	// Si hay mas de 3 DISASTER o mas de 10 HIGH o mas de 15 AVERAGES o mas de 25 WARNINGS DEFCON 1 GUERRA MUNDIAL
-	if (ProblemasZabbix[0] > 3 || ProblemasZabbix[1] >10 || ProblemasZabbix[2] > 15 || ProblemasZabbix[3] > 25){
+	// Si hay mas de 3 DISASTER o mas de 6 HIGH o mas de 15 AVERAGES o mas de 25 WARNINGS DEFCON 1 GUERRA MUNDIAL
+	if (ProblemasZabbix[0] > 3 || ProblemasZabbix[1] >6 || ProblemasZabbix[2] > 15 || ProblemasZabbix[3] > 25){
 
 		DefconFromZabbix = 1;
 
