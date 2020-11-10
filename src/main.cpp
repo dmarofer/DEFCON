@@ -341,6 +341,11 @@ void TaskProcesaComandos (){
 
 					}
 
+					else if (COMANDO == "SILENCIOCOM"){
+
+						MiDefcon.SilenciaAvisoComunicaciones();
+
+					}
 					
 					// Y Ya si no es de ninguno de estos ....
 

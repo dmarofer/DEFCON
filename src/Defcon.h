@@ -77,6 +77,9 @@ private:
 	// Para enviar la config a los topic stat
 	void MandaConfig();
 
+	// Variable para Silenciar los avisos de comunicaciones mal.
+	bool SilencioComunicaciones;
+
 public:
 
 	// Para el estado de la cabecera
@@ -117,4 +120,8 @@ public:
 
 	void Problemas (String jsonproblemas);
 
+	void PitaAvisoComKO();
+
+	void SilenciaAvisoComunicaciones();
+		
 };

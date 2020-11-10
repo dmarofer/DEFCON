@@ -181,6 +181,9 @@ void Defcon::Iniciar(){
 	DefconLevelFuturo = 5;
 	Estado_Cambio_Defcon = DEFCON_SIN_CAMBIOS;
 
+	// Pitido Comunicaciones KO
+	SilencioComunicaciones = false;
+
 	// Poner los LED en su estado INICIAL
 	uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], 255);
 	MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
@@ -206,15 +209,7 @@ void Defcon::Iniciar(){
 
 	// Poner a cero el contador de datos recibidos
 	MillisRXDatos = 0;
-
-	pinMode(PINBUZZER, OUTPUT);
-	tone(PINBUZZER,1200,50);
-	delay(100);
-	tone(PINBUZZER,1200,50);
-	delay(100);
-	tone(PINBUZZER,1200,100);
-		
-				
+			
 }
 
 // A ejecutar lo mas rapido posible
@@ -257,6 +252,9 @@ void Defcon::RunFast() {
 		break;
 
 	}
+
+
+
 
 
 	// Maquina de estado para el timing del cambio de Defcon
@@ -395,6 +393,20 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 				this->Delta1Begin();
 				tone(PINBUZZER,FRECDEFCON,TBUZZER);
 				Estado_Cambio_Defcon = DEFCON_AVISANDO;
+
+			}
+
+			// Si es igual (no hay cambios en el defcon), nos vamos a entretener pitando si fallan las comunicaciones
+			// Como el delta no se usa mientras no haya cambio de defcon lo usare para esto
+			// Si estamos en el cambio de defcon entonces esto de los pitidos no se hace
+			else{
+
+				if (Estado_Cabecera_Actual != CABECERA_OK && !SilencioComunicaciones && GetDelta1() >= TAVISOS*1000){
+
+					this->PitaAvisoComKO();
+					Delta1Begin();
+
+				}
 
 			}
 
@@ -542,6 +554,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				Estado_Cabecera_Actual = CABECERA_OK;
 				MisLeds.show();
 				this->MandaConfig();
+				SilencioComunicaciones = false;
 
 			break;
 	
@@ -556,5 +569,24 @@ void Defcon::MandaConfig(){
 
 	MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
 	MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
+
+}
+
+// Para pitar si las comunicaciones no estan OK.
+void Defcon::PitaAvisoComKO(){
+
+	pinMode(PINBUZZER, OUTPUT);
+	tone(PINBUZZER,1200,50);	
+	delay(100);
+	tone(PINBUZZER,1200,50);	
+	delay(100);
+	tone(PINBUZZER,1200,100);	
+
+}
+
+// Para activar el silencio de los avisos de comunicaciones (ACK, Enterado)
+void Defcon::SilenciaAvisoComunicaciones(){
+
+	SilencioComunicaciones = true;
 
 }
