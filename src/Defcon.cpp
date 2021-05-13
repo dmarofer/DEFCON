@@ -196,6 +196,7 @@ void Defcon::Iniciar(){
 
 	// Poner el Brillo global
 	MisLeds.setBrightness(255);
+	BrilloActual = 255;
 
 	// Pasar los datos a los LED
 	MisLeds.show();
@@ -209,7 +210,10 @@ void Defcon::Iniciar(){
 
 	// Poner a cero el contador de datos recibidos
 	MillisRXDatos = 0;
-			
+
+	// Inicializar el flasheo de la cabecera
+	FlasheandoCabecera = false;
+
 }
 
 // A ejecutar lo mas rapido posible
@@ -254,16 +258,15 @@ void Defcon::RunFast() {
 	}
 
 
-
-
-
 	// Maquina de estado para el timing del cambio de Defcon
 	this->MaquinaEstadoCambioDefconRun();	
 
 	// Maquina de estado para el cambio de la cabecera
 	this->MaquinaEstadoCambioCabeceraRun();
 
-
+	// Maquina de estado para el flasheo de la cabecera
+	this->MaquinaEstadoFlasheoCabecera();
+	
 }
 
 // Cambiar el nivel Defcon
@@ -281,10 +284,11 @@ void Defcon::SetCabecera(Defcon::TipoEstadosCabecera l_Estado_Cabecera){
 }
 
 // Cambiar el brillo global de los LED
-void Defcon::SetBrillo (int l_brillo){
+void Defcon::SetBrillo (uint8_t l_brillo){
 
-	if (l_brillo != MisLeds.getBrightness() && l_brillo >= 0 && l_brillo <= 255){
+	if (l_brillo != MisLeds.getBrightness() && l_brillo > 0 && l_brillo <= 255){
 
+		BrilloActual = l_brillo;
 		MisLeds.setBrightness(l_brillo);
 		MisLeds.show();
 		MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
@@ -393,7 +397,8 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 				this->Delta1Begin();
 				tone(PINBUZZER,FRECDEFCON,TBUZZER);
 				Estado_Cambio_Defcon = DEFCON_AVISANDO;
-
+				if (FlasheandoCabecera) { this->FlaseoCabecera(false);}
+				
 			}
 
 			// Si es igual (no hay cambios en el defcon), nos vamos a entretener pitando si fallan las comunicaciones
@@ -498,6 +503,7 @@ void Defcon::MaquinaEstadoCambioDefconRun(){
 				Estado_Cambio_Defcon = DEFCON_SIN_CAMBIOS;
 				DefconLevelActual = DefconLevelFuturo;
 				MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
+				this->FlaseoCabecera(true);
 
 			}
 
@@ -519,6 +525,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				MisLeds.fill(MisLeds.Color(255,0,0),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 				Estado_Cabecera_Actual = CABECERA_SINRED;
 				MisLeds.show();
+				this->FlaseoCabecera(true);
 
 			break;
 
@@ -527,6 +534,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				MisLeds.fill(MisLeds.Color(0,0,255),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 				Estado_Cabecera_Actual = CABECERA_AP_MODE;
 				MisLeds.show();
+				this->FlaseoCabecera(true);
 
 			break;
 
@@ -536,6 +544,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				MisLeds.fill(MisLeds.Color(255,140,0),PrimerLed[0], (UltimoLed[0]-PrimerLed[0]) + 1);
 				Estado_Cabecera_Actual = CABECERA_SINMQTT;
 				MisLeds.show();
+				this->FlaseoCabecera(true);
 
 			break;
 
@@ -545,6 +554,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				Estado_Cabecera_Actual = CABECERA_SIN_DATOS;
 				MisLeds.show();
 				this->MandaConfig();
+				this->FlaseoCabecera(true);
 
 			break;
 
@@ -555,6 +565,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 				MisLeds.show();
 				this->MandaConfig();
 				SilencioComunicaciones = false;
+				this->FlaseoCabecera(false);
 
 			break;
 	
@@ -584,9 +595,121 @@ void Defcon::PitaAvisoComKO(){
 
 }
 
+void Defcon::Aviso (int l_NumeroAviso){
+
+	switch (l_NumeroAviso){
+
+		case 1:
+
+			pinMode(PINBUZZER, OUTPUT);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+
+			this->FlaseoCabecera(true);
+			
+		break;
+		
+		default:
+		
+		break;
+	}
+
+}
+
 // Para activar el silencio de los avisos de comunicaciones (ACK, Enterado)
 void Defcon::SilenciaAvisoComunicaciones(){
 
 	SilencioComunicaciones = true;
+
+}
+
+void Defcon::FlaseoCabecera(bool l_flaseocabecera){
+
+	switch(l_flaseocabecera){
+
+		case true:
+
+			FlasheandoCabecera = true;
+			millisunflasheo = millis();
+			millisflasheototal = millis();
+			
+		break;
+
+		case false:
+
+			FlasheandoCabecera = false;
+			MisLeds.setBrightness(BrilloActual);
+			
+			// Esto es la chapu porque no se por que no funciona bien la funcion brillo con algunos led, con el 3 en mi caso
+			uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], BrilloActual);
+			MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
+			
+			MisLeds.show();
+
+			
+		break;
+		
+	}
+
+}
+
+void Defcon::MaquinaEstadoFlasheoCabecera(){
+
+	switch(FlasheandoCabecera){
+
+		case true:
+
+			// Apagar si encendido
+			if (MisLeds.getBrightness() > 1 && (millis() - millisunflasheo > 1000)){
+
+				
+				MisLeds.setBrightness(1);
+				MisLeds.show();
+				millisunflasheo = millis();
+				
+
+			}
+
+			// Encender si apagado
+			else if (MisLeds.getBrightness() == 1 && (millis() - millisunflasheo > 1000)){
+
+				MisLeds.setBrightness(BrilloActual);
+				
+				// Esto es la chapu porque no se por que no funciona bien la funcion brillo con algunos led, con el 3 en mi caso
+				uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], BrilloActual);
+				MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
+				
+				MisLeds.show();
+				
+				millisunflasheo = millis();
+			
+			}
+
+			// Apagado automatico del flaseo si cabecera esta OK
+			if (Estado_Cabecera_Actual == CABECERA_OK && (millis() - millisflasheototal) > 60000 ){
+
+				this->FlaseoCabecera(false);
+
+			}
+
+		break;
+
+		case false:
+	
+
+		break;
+
+	}
+
 
 }

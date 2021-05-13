@@ -80,6 +80,18 @@ private:
 	// Variable para Silenciar los avisos de comunicaciones mal.
 	bool SilencioComunicaciones;
 
+	// Funcion para activar o desactivar el flaseo de la cabecera
+	void FlaseoCabecera (bool l_flaseocabecera);
+	
+	// Variables Globales para el flasheo de la cabecera
+	bool FlasheandoCabecera;
+	unsigned long millisunflasheo;
+	unsigned long millisflasheototal;
+	uint8_t BrilloActual;
+
+	// Maquina estado para el flasheo de la cabecera
+	void MaquinaEstadoFlasheoCabecera();
+
 public:
 
 	// Para el estado de la cabecera
@@ -90,6 +102,7 @@ public:
 		CABECERA_SINMQTT,
 		CABECERA_SIN_DATOS,
 		CABECERA_OK,
+		CABECERA_AVISO,
 
 	}Estado_Cabecera_Actual, Estado_Cabecera_Futuro;
 
@@ -116,12 +129,14 @@ public:
 	
 	void SetDefconLevel (int l_DefconLevel);							// Para acmabiar el estado de Defcon
 
-	void SetBrillo (int l_brillo);
+	void SetBrillo (uint8_t l_brillo);
 
 	void Problemas (String jsonproblemas);
 
 	void PitaAvisoComKO();
 
 	void SilenciaAvisoComunicaciones();
+
+	void Aviso(int l_NumeroAviso);
 		
 };

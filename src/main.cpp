@@ -141,7 +141,7 @@ void EventoComunicaciones (unsigned int Evento_Comunicaciones, char Info[200]){
 		Serial.print("MQTT - CONECTADO: ");
 		Serial.println(String(Info));
 		ClienteNTP.update();
-		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_OK);
+		MiDefcon.SetCabecera(Defcon::TipoEstadosCabecera::CABECERA_SIN_DATOS);
 		CuentaReconexionesMQTT = 0;
 
 	break;
@@ -344,6 +344,12 @@ void TaskProcesaComandos (){
 					else if (COMANDO == "SILENCIOCOM"){
 
 						MiDefcon.SilenciaAvisoComunicaciones();
+
+					}
+
+					else if (COMANDO == "AVISO"){
+
+						MiDefcon.Aviso(PAYLOAD.toInt());
 
 					}
 					
