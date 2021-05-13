@@ -102,7 +102,6 @@ public:
 		CABECERA_SINMQTT,
 		CABECERA_SIN_DATOS,
 		CABECERA_OK,
-		CABECERA_AVISO,
 
 	}Estado_Cabecera_Actual, Estado_Cabecera_Futuro;
 
