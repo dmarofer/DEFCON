@@ -234,7 +234,7 @@ void Defcon::RunFast() {
 	
 		case CABECERA_OK:
 		
-			if ((millis() - MillisRXDatos) > 70000){
+			if ((millis() - MillisRXDatos) > 100000){
 
 				this->SetCabecera(CABECERA_SIN_DATOS);
 
@@ -244,7 +244,7 @@ void Defcon::RunFast() {
 
 		case CABECERA_SIN_DATOS:
 		
-			if ((millis() - MillisRXDatos) <= 70000){
+			if ((millis() - MillisRXDatos) <= 100000){
 
 				this->SetCabecera(CABECERA_OK);
 
@@ -595,6 +595,7 @@ void Defcon::PitaAvisoComKO(){
 
 }
 
+
 void Defcon::Aviso (int l_NumeroAviso){
 
 	switch (l_NumeroAviso){
@@ -633,6 +634,7 @@ void Defcon::SilenciaAvisoComunicaciones(){
 
 }
 
+
 void Defcon::FlaseoCabecera(bool l_flaseocabecera){
 
 	switch(l_flaseocabecera){
@@ -662,6 +664,7 @@ void Defcon::FlaseoCabecera(bool l_flaseocabecera){
 	}
 
 }
+
 
 void Defcon::MaquinaEstadoFlasheoCabecera(){
 
