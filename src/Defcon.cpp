@@ -196,8 +196,7 @@ void Defcon::Iniciar(){
 
 	// Poner el Brillo global
 	MisLeds.setBrightness(255);
-	BrilloActual = 255;
-
+	
 	// Pasar los datos a los LED
 	MisLeds.show();
 
@@ -281,20 +280,6 @@ void Defcon::SetCabecera(Defcon::TipoEstadosCabecera l_Estado_Cabecera){
 
 	Estado_Cabecera_Futuro = l_Estado_Cabecera;
 
-}
-
-// Cambiar el brillo global de los LED
-void Defcon::SetBrillo (uint8_t l_brillo){
-
-	if (l_brillo != MisLeds.getBrightness() && l_brillo > 0 && l_brillo <= 255){
-
-		BrilloActual = l_brillo;
-		MisLeds.setBrightness(l_brillo);
-		MisLeds.show();
-		MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
-
-	}
-	
 }
 
 // Funcion para recibir los datos de Zabbix via JSON
@@ -383,7 +368,95 @@ unsigned long Defcon::GetDelta1(){
 
 }
 
-// Funcion de Vida para la maquina de estado del cambio de Defcon
+// Mandar a los topic stat las configuraciones actuales
+void Defcon::MandaConfig(){
+
+	MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
+	
+}
+
+// Para pitar si las comunicaciones no estan OK.
+void Defcon::PitaAvisoComKO(){
+
+	pinMode(PINBUZZER, OUTPUT);
+	tone(PINBUZZER,1200,50);	
+	delay(100);
+	tone(PINBUZZER,1200,50);	
+	delay(100);
+	tone(PINBUZZER,1200,100);	
+
+}
+
+// Funcion que avisa de "algo" con un aviso sonoro
+void Defcon::Aviso (int l_NumeroAviso){
+
+	switch (l_NumeroAviso){
+
+		case 1:
+
+			pinMode(PINBUZZER, OUTPUT);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+			tone(PINBUZZER,1200,300);	
+			delay(600);
+
+			this->FlaseoCabecera(true);
+			
+		break;
+		
+		default:
+		
+		break;
+	}
+
+}
+
+// Para activar el silencio de los avisos de comunicaciones (ACK, Enterado)
+void Defcon::SilenciaAvisoComunicaciones(){
+
+	SilencioComunicaciones = true;
+
+}
+
+// Funcion para activar el parpadeo de los LED durante 1 minuto (o hasta que acabe el problema)
+void Defcon::FlaseoCabecera(bool l_flaseocabecera){
+
+	switch(l_flaseocabecera){
+
+		case true:
+
+			FlasheandoCabecera = true;
+			millisunflasheo = millis();
+			millisflasheototal = millis();
+			
+		break;
+
+		case false:
+
+			FlasheandoCabecera = false;
+			MisLeds.setBrightness(255);
+			
+			// Esto es la chapu porque no se por que no funciona bien la funcion brillo con algunos led, con el 3 en mi caso
+			uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], 255);
+			MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
+			
+			MisLeds.show();
+			
+		break;
+		
+	}
+
+}
+
+// Maquina de estado del cambio de Defcon
 void Defcon::MaquinaEstadoCambioDefconRun(){
 
 
@@ -575,97 +648,7 @@ void Defcon::MaquinaEstadoCambioCabeceraRun(){
 	
 }
 
-// Mandar a los topic stat las configuraciones actuales
-void Defcon::MandaConfig(){
-
-	MiRespondeComandos("DEFCONLEVEL", String(DefconLevelActual));
-	MiRespondeComandos("BRILLO", String(MisLeds.getBrightness()));
-
-}
-
-// Para pitar si las comunicaciones no estan OK.
-void Defcon::PitaAvisoComKO(){
-
-	pinMode(PINBUZZER, OUTPUT);
-	tone(PINBUZZER,1200,50);	
-	delay(100);
-	tone(PINBUZZER,1200,50);	
-	delay(100);
-	tone(PINBUZZER,1200,100);	
-
-}
-
-
-void Defcon::Aviso (int l_NumeroAviso){
-
-	switch (l_NumeroAviso){
-
-		case 1:
-
-			pinMode(PINBUZZER, OUTPUT);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-
-			this->FlaseoCabecera(true);
-			
-		break;
-		
-		default:
-		
-		break;
-	}
-
-}
-
-// Para activar el silencio de los avisos de comunicaciones (ACK, Enterado)
-void Defcon::SilenciaAvisoComunicaciones(){
-
-	SilencioComunicaciones = true;
-
-}
-
-
-void Defcon::FlaseoCabecera(bool l_flaseocabecera){
-
-	switch(l_flaseocabecera){
-
-		case true:
-
-			FlasheandoCabecera = true;
-			millisunflasheo = millis();
-			millisflasheototal = millis();
-			
-		break;
-
-		case false:
-
-			FlasheandoCabecera = false;
-			MisLeds.setBrightness(BrilloActual);
-			
-			// Esto es la chapu porque no se por que no funciona bien la funcion brillo con algunos led, con el 3 en mi caso
-			uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], BrilloActual);
-			MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
-			
-			MisLeds.show();
-
-			
-		break;
-		
-	}
-
-}
-
-
+// Maquina de estado para el parpadeo
 void Defcon::MaquinaEstadoFlasheoCabecera(){
 
 	switch(FlasheandoCabecera){
@@ -684,12 +667,12 @@ void Defcon::MaquinaEstadoFlasheoCabecera(){
 			}
 
 			// Encender si apagado
-			else if (MisLeds.getBrightness() == 1 && (millis() - millisunflasheo > 1000)){
+			else if (MisLeds.getBrightness() <= 1 && (millis() - millisunflasheo > 1000)){
 
-				MisLeds.setBrightness(BrilloActual);
+				MisLeds.setBrightness(255);
 				
 				// Esto es la chapu porque no se por que no funciona bien la funcion brillo con algunos led, con el 3 en mi caso
-				uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], BrilloActual);
+				uint32_t ColorDestino = MisLeds.ColorHSV(HueBloque[DefconLevelActual], SaturacionBloque[DefconLevelActual], 255);
 				MisLeds.fill(ColorDestino,PrimerLed[DefconLevelActual], (UltimoLed[DefconLevelActual]-PrimerLed[DefconLevelActual]) + 1);
 				
 				MisLeds.show();

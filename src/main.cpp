@@ -329,12 +329,6 @@ void TaskProcesaComandos (){
 
 					}
 
-					else if (COMANDO == "BRILLO"){
-
-						MiDefcon.SetBrillo(PAYLOAD.toInt());
-
-					}
-
 					else if (COMANDO == "PROBLEMAS"){
 
 						MiDefcon.Problemas(PAYLOAD);
