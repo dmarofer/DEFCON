@@ -551,7 +551,7 @@ void setup() {
 		// WifiManager opciones globales
 		MiWifiManager.setConfigPortalTimeout(240);
 		MiWifiManager.setSaveConfigCallback(WifiManagerSaveConfigCallback);
-		
+		WiFi.hostname("DEFCON");
 		// Iniciar el Objeto MiDefcon
 		MiDefcon.SetRespondeComandoCallback(MandaRespuesta);
 		MiDefcon.LeeConfig();

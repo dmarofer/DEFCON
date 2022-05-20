@@ -8,7 +8,6 @@
 #include <Configuracion.h>				// Fichero de configuracion
 #include <Adafruit_NeoPixel.h>			// Para los LED: https://adafruit.github.io/Adafruit_NeoPixel/html/class_adafruit___neo_pixel.html
 
-
 // OBJETOS
 Adafruit_NeoPixel MisLeds (NUMEROLEDS, PINLEDS, NEO_GRB + NEO_KHZ800);
 
@@ -19,7 +18,7 @@ Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(Cl
 	ComOK = false;
 	HayQueSalvar = false;
 	mificheroconfig = fich_config_Defcon;
-
+	t_uptime = millis();
 	
 	// Inicializar los arrays
 	// Valores de HUE para los LED
@@ -78,9 +77,11 @@ String Defcon::MiEstadoJson(int categoria) {
 		// Esto llena de objetos de tipo "pareja propiedad valor"
 		jObj.set("TIME", ClienteNTP.getFormattedTime());				// HORA
 		jObj.set("HI", HardwareInfo);									// Info del Hardware
-		jObj.set("UPT", t_uptime);										// Uptime en segundos
+		jObj.set("UPT", millis() - t_uptime / 1000 );					// Uptime en segundos
 		jObj.set("DL", DefconLevelActual);								// Defcon Level
-		
+		jObj.set("DRT", MillisRXDatos / 1000 );							// Tiempo en seg. desde la recepcion del utimo dato de zabbix
+
+
 		break;
 
 	case 2:
@@ -217,9 +218,6 @@ void Defcon::Iniciar(){
 
 // A ejecutar lo mas rapido posible
 void Defcon::RunFast() {
-	
-	// UpTime Minutos
-	t_uptime = 0;
 	
 	if (HayQueSalvar){
 
@@ -401,12 +399,30 @@ void Defcon::Aviso (int l_NumeroAviso){
 			delay(600);
 			tone(PINBUZZER,1200,300);	
 			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
-			tone(PINBUZZER,1200,300);	
-			delay(600);
+
+			//this->FlaseoCabecera(true);
+			
+		break;
+
+		case 2:
+
+			pinMode(PINBUZZER, OUTPUT);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
+			tone(PINBUZZER,1200,200);	
+			delay(400);
 
 			this->FlaseoCabecera(true);
 			
