@@ -175,8 +175,27 @@ void Defcon::Iniciar(){
 
 	Serial.println("Iniciando Leds");
 
+	// Test de Inicio
+
 	MisLeds.begin();
 	MisLeds.clear();
+	MisLeds.show();
+
+	for (uint8_t i = 1; i < NUMEROLEDS; i++)
+	{
+		MisLeds.fill(MisLeds.Color(255,255,255),i,1);
+		MisLeds.show();
+		delay(200);
+		MisLeds.clear();
+		delay(200);
+
+	}
+		
+	MisLeds.clear();
+	MisLeds.show();
+	this->Aviso(1);
+	delay(1000);
+	
 	// Poner a Cero los niveles Defcon (nivel cero es todo apagado)
 	DefconLevelActual = 5;
 	DefconLevelFuturo = 5;

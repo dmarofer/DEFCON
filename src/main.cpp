@@ -346,6 +346,12 @@ void TaskProcesaComandos (){
 						MiDefcon.Aviso(PAYLOAD.toInt());
 
 					}
+
+					else if (COMANDO == "REBOOT"){
+
+						ESP.restart();
+
+					}
 					
 					// Y Ya si no es de ninguno de estos ....
 
