@@ -79,7 +79,7 @@ String Defcon::MiEstadoJson(int categoria) {
 		jObj.set("HI", HardwareInfo);									// Info del Hardware
 		jObj.set("UPT", millis() - t_uptime / 1000 );					// Uptime en segundos
 		jObj.set("DL", DefconLevelActual);								// Defcon Level
-		jObj.set("DRT", MillisRXDatos / 1000 );							// Tiempo en seg. desde la recepcion del utimo dato de zabbix
+		jObj.set("DRT", (millis() - MillisRXDatos) / 1000 );			// Tiempo en seg. desde la recepcion del utimo dato de zabbix
 
 
 		break;
