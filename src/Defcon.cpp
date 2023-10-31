@@ -178,23 +178,11 @@ void Defcon::Iniciar(){
 	// Test de Inicio
 
 	MisLeds.begin();
-	MisLeds.clear();
-	MisLeds.show();
 
-	for (uint8_t i = 1; i < NUMEROLEDS; i++)
-	{
-		MisLeds.fill(MisLeds.Color(255,255,255),i,1);
-		MisLeds.show();
-		delay(200);
-		MisLeds.clear();
-		delay(200);
-
-	}
 		
 	MisLeds.clear();
 	MisLeds.show();
-	this->Aviso(1);
-	delay(1000);
+
 	
 	// Poner a Cero los niveles Defcon (nivel cero es todo apagado)
 	DefconLevelActual = 5;
@@ -451,6 +439,35 @@ void Defcon::Aviso (int l_NumeroAviso){
 		
 		break;
 	}
+
+}
+
+// Funcion para probar los led y el buzzer y reiniciar.
+void Defcon::HwTest(){
+
+	MisLeds.clear();
+	MisLeds.show();
+
+	// Probar todos los led en blanco uno por uno
+	for (uint8_t i = 0; i < NUMEROLEDS; i++)
+	{
+		MisLeds.fill(MisLeds.Color(255,255,255),i,1);
+		MisLeds.show();
+		delay(200);
+		MisLeds.clear();
+		delay(200);
+
+	}
+		
+	// Probar el buzzer
+	pinMode(PINBUZZER, OUTPUT);
+	tone(PINBUZZER,1000,500);	
+	delay(600);
+	tone(PINBUZZER,1200,500);	
+	delay(600);
+	tone(PINBUZZER,1400,500);	
+	delay(2000);
+	ESP.restart();
 
 }
 

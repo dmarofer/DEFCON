@@ -352,6 +352,12 @@ void TaskProcesaComandos (){
 						ESP.restart();
 
 					}
+
+					else if (COMANDO == "HWTEST"){
+
+						MiDefcon.HwTest();
+
+					}
 					
 					// Y Ya si no es de ninguno de estos ....
 

@@ -135,5 +135,7 @@ public:
 	void SilenciaAvisoComunicaciones();
 
 	void Aviso(int l_NumeroAviso);
-		
+
+	void HwTest();
+			
 };
