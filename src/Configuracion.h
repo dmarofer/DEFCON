@@ -28,15 +28,15 @@
 #define PINBUZZER D6
 
 // Numero total de LEDS
-#define NUMEROLEDS 50
+#define NUMEROLEDS 100
 
 // Numero de leds de cada bloque
 #define NUMLED0 20 // EL DEFCON
-#define NUMLED5 6
-#define NUMLED4 6
-#define NUMLED3 6
-#define NUMLED2 6
-#define NUMLED1 6
+#define NUMLED5 16
+#define NUMLED4 16
+#define NUMLED3 16
+#define NUMLED2 16
+#define NUMLED1 16
 
 // PARA EL COLOR. FORMATO HSV (HUE, SATURACION y BRILLO)
 

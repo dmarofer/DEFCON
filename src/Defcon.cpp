@@ -9,12 +9,12 @@
 #include <Adafruit_NeoPixel.h>			// Para los LED: https://adafruit.github.io/Adafruit_NeoPixel/html/class_adafruit___neo_pixel.html
 
 // OBJETOS
-Adafruit_NeoPixel MisLeds (NUMEROLEDS, PINLEDS, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel MisLeds (NUMEROLEDS, PINLEDS, NEO_GRB + NEO_KHZ400);
 
 // Constructor
 Defcon::Defcon(String fich_config_Defcon, NTPClient& ClienteNTP) : ClienteNTP(ClienteNTP) {
 
-    HardwareInfo = "Defcon-1.0b";
+    HardwareInfo = "Defcon-1.2";
 	ComOK = false;
 	HayQueSalvar = false;
 	mificheroconfig = fich_config_Defcon;
